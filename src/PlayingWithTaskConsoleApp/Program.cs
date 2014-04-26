@@ -23,17 +23,27 @@ namespace PlayingWithTaskConsoleApp
         {
             var tasks = new List<Task>();
 
-            var taskOne = Task.Run(() => GetUserWithDelay(NameTwo)).ContinueWith(DisplayResult);
+            var taskOne = Task.Run(() => GetUserWithDelay(NameTwo));
+            taskOne.ContinueWith(DisplayResult, TaskContinuationOptions.OnlyOnRanToCompletion);
+            taskOne.ContinueWith(DisplayFailure, TaskContinuationOptions.OnlyOnFaulted);
+
             tasks.Add(taskOne);
             
-            var taskTwo = Task.Run(() => GetUser(NameOne)).ContinueWith(DisplayResult);
+            var taskTwo = Task.Run(() => GetUser(NameOne));
+            taskTwo.ContinueWith(DisplayResult, TaskContinuationOptions.OnlyOnRanToCompletion);
+            taskTwo.ContinueWith(DisplayFailure, TaskContinuationOptions.OnlyOnFaulted);
             tasks.Add(taskTwo);
 
-            var taskthree = Task.Run(() => GetUserWithDelay("Strange name")).ContinueWith(DisplayResult);
+            var taskthree = Task.Run(() => GetUserWithDelay("Strange name"));
+            taskthree.ContinueWith(DisplayResult, TaskContinuationOptions.OnlyOnRanToCompletion);
+            taskthree.ContinueWith(DisplayFailure, TaskContinuationOptions.OnlyOnFaulted);
             tasks.Add(taskthree);
 
             var cancellationTokenSource = new CancellationTokenSource();
-            var taskFour = Task.Run(() => GetUserWithDelay("To cancel"), cancellationTokenSource.Token).ContinueWith(DisplayResult, cancellationTokenSource.Token);
+            var taskFour = Task.Run(() => GetUserWithDelay("To cancel"), cancellationTokenSource.Token);
+            taskFour.ContinueWith(DisplayResult, TaskContinuationOptions.OnlyOnRanToCompletion);
+            taskFour.ContinueWith(DisplayFailure, TaskContinuationOptions.OnlyOnFaulted);
+            taskFour.ContinueWith(DisplayFailure, TaskContinuationOptions.OnlyOnCanceled);
             tasks.Add(taskFour);
             cancellationTokenSource.Cancel();
 
@@ -65,13 +75,22 @@ namespace PlayingWithTaskConsoleApp
             Console.WriteLine("Status: " + task.Status);
             Console.WriteLine("Is Faulted: " + task.IsFaulted);
 
-            if (task.IsFaulted && task.Exception != null) {
+            Console.WriteLine(task.Result);
+
+            Console.WriteLine("==================");
+        }
+
+        private static void DisplayFailure(Task<User> task)
+        {
+            Console.WriteLine("==================");
+
+            Console.WriteLine("Task ID: " + task.Id);
+            
+            if (task.IsFaulted && task.Exception != null)
+            {
                 Console.WriteLine(task.Exception.Message);
             }
-            else {
-                Console.WriteLine(task.Result);
-            }
-
+            
             Console.WriteLine("==================");
         }
 
