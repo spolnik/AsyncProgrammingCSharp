@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PlayingWithTaskConsoleApp
@@ -22,12 +23,56 @@ namespace PlayingWithTaskConsoleApp
         {
             var tasks = new List<Task>();
 
-            var taskOne = Task.Run(() => GetUserWithDelay(NameTwo)).ContinueWith(x => Console.WriteLine(x.Result));
+            var taskOne = Task.Run(() => GetUserWithDelay(NameTwo)).ContinueWith(DisplayResult);
             tasks.Add(taskOne);
-            var taskTwo = Task.Run(() => GetUser(NameOne)).ContinueWith(x => Console.WriteLine(x.Result));
+            
+            var taskTwo = Task.Run(() => GetUser(NameOne)).ContinueWith(DisplayResult);
             tasks.Add(taskTwo);
 
-            Task.WaitAll(tasks.ToArray());
+            var taskthree = Task.Run(() => GetUserWithDelay("Strange name")).ContinueWith(DisplayResult);
+            tasks.Add(taskthree);
+
+            var cancellationTokenSource = new CancellationTokenSource();
+            var taskFour = Task.Run(() => GetUserWithDelay("To cancel"), cancellationTokenSource.Token).ContinueWith(DisplayResult, cancellationTokenSource.Token);
+            tasks.Add(taskFour);
+            cancellationTokenSource.Cancel();
+
+            try
+            {
+                Task.WaitAll(tasks.ToArray());
+            }
+            catch (AggregateException e)
+            {
+                Console.WriteLine("\nAggregateException thrown with the following inner exceptions:");
+                // Display information about each exception.  
+                foreach (var v in e.InnerExceptions)
+                {
+                    if (v is TaskCanceledException) {
+                        Console.WriteLine("   TaskCanceledException: Task {0}", ((TaskCanceledException) v).Task.Id);
+                    }
+                    else {
+                        Console.WriteLine("   Exception: {0}", v.GetType().Name);
+                    }
+                }
+                Console.WriteLine();
+            } 
+        }
+
+        private static void DisplayResult(Task<User> task) {
+            Console.WriteLine("==================");
+
+            Console.WriteLine("Task ID: " + task.Id);
+            Console.WriteLine("Status: " + task.Status);
+            Console.WriteLine("Is Faulted: " + task.IsFaulted);
+
+            if (task.IsFaulted && task.Exception != null) {
+                Console.WriteLine(task.Exception.Message);
+            }
+            else {
+                Console.WriteLine(task.Result);
+            }
+
+            Console.WriteLine("==================");
         }
 
         private static User GetUser(string name) {
